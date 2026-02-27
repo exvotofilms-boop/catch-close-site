@@ -1,5 +1,5 @@
 /* ============================================================
-   CATCH / CLOSE — script.js
+   BOOK MORE JOBS — script.js
    ============================================================ */
 
 'use strict';
@@ -19,7 +19,6 @@
     isOpen = !isOpen;
     mobile.classList.toggle('open', isOpen);
     toggle.setAttribute('aria-expanded', isOpen);
-    // Animate burger → ✕
     const spans = toggle.querySelectorAll('span');
     if (isOpen) {
       spans[0].style.transform = 'rotate(45deg) translate(5px, 5px)';
@@ -30,7 +29,6 @@
     }
   });
 
-  // Close mobile nav on link click
   mobile.querySelectorAll('a').forEach(link => {
     link.addEventListener('click', () => {
       isOpen = false;
@@ -95,35 +93,98 @@
 })();
 
 
-/* ─── Calculator ──────────────────────────────────────────── */
+/* ─── How It Works — Tab System ───────────────────────────── */
+(function initTabs() {
+  const tabsWrap  = document.getElementById('system-tabs');
+  const panelsWrap = document.getElementById('system-panels');
+  if (!tabsWrap || !panelsWrap) return;
+
+  const tabs   = Array.from(tabsWrap.querySelectorAll('.system-tab'));
+  const panels = Array.from(panelsWrap.querySelectorAll('.system-panel'));
+  let current  = 0;
+  let autoTimer = null;
+
+  function goTo(idx) {
+    current = idx;
+
+    // Update tabs
+    tabs.forEach((tab, i) => {
+      tab.classList.toggle('active', i === idx);
+      // Reset progress animation
+      const prog = tab.querySelector('.system-tab-progress');
+      if (prog) {
+        prog.style.animation = 'none';
+        prog.offsetHeight; // force reflow
+        prog.style.animation = '';
+      }
+    });
+
+    // Update panels
+    panels.forEach((panel, i) => {
+      panel.classList.toggle('active', i === idx);
+    });
+
+    resetAuto();
+  }
+
+  function next() {
+    goTo((current + 1) % tabs.length);
+  }
+
+  function resetAuto() {
+    clearInterval(autoTimer);
+    autoTimer = setInterval(next, 8000);
+  }
+
+  // Tab click
+  tabs.forEach((tab, i) => {
+    tab.addEventListener('click', () => goTo(i));
+  });
+
+  // Start auto-cycle
+  resetAuto();
+})();
+
+
+/* ─── Calculator V2 ──────────────────────────────────────── */
 (function initCalculator() {
-  const ticketSlider  = document.getElementById('ticket-slider');
-  const callsSlider   = document.getElementById('calls-slider');
-  const revenueSlider = document.getElementById('revenue-slider');
-  const ticketVal     = document.getElementById('ticket-val');
-  const callsVal      = document.getElementById('calls-val');
-  const revenueVal    = document.getElementById('revenue-val');
+  const ticketSlider   = document.getElementById('ticket-slider');
+  const callsSlider    = document.getElementById('calls-slider');
+  const adBudgetSlider = document.getElementById('ad-budget-slider');
+  const ticketVal      = document.getElementById('ticket-val');
+  const callsVal       = document.getElementById('calls-val');
+  const adBudgetVal    = document.getElementById('ad-budget-val');
   if (!ticketSlider) return;
 
-  const addonEl        = document.getElementById('addon-rejuv');
-  const pkgClose       = document.getElementById('pkg-close');
-  const pkgCatchClose  = document.getElementById('pkg-catchclose');
+  // Close rate toggle
+  const closeRateToggle = document.getElementById('close-rate-toggle');
+  const rateButtons     = closeRateToggle ? Array.from(closeRateToggle.querySelectorAll('.calc-rate-btn')) : [];
 
-  const calcMonthly    = document.getElementById('calc-monthly');
-  const calcMonthlyRng = document.getElementById('calc-monthly-range');
-  const calcAnnual     = document.getElementById('calc-annual');
-  const calcJobs       = document.getElementById('calc-jobs');
-  const calcCost       = document.getElementById('calc-cost');
-  const calcRoi        = document.getElementById('calc-roi');
-  const calcRoiInline  = document.getElementById('calc-roi-inline');
+  // iOS toggles
+  const toggleRejuv = document.getElementById('toggle-rejuv');
+  const toggleAds   = document.getElementById('toggle-ads');
+  const adBudgetWrap = document.getElementById('ad-budget-wrap');
 
-  const condRejuv      = document.getElementById('cond-rejuv');
-  const condVoice      = document.getElementById('cond-voice');
-  const condHighticket = document.getElementById('cond-highticket');
-  const condTicketMath = document.getElementById('cond-ticket-math');
+  // Plan pills
+  const planPills = document.getElementById('plan-pills');
+  const pills     = planPills ? Array.from(planPills.querySelectorAll('.calc-plan-pill')) : [];
 
+  // Output elements
+  const calcMonthly   = document.getElementById('calc-monthly');
+  const calcAnnual    = document.getElementById('calc-annual');
+  const calcJobs      = document.getElementById('calc-jobs');
+  const calcCost      = document.getElementById('calc-cost');
+  const calcRoi       = document.getElementById('calc-roi');
+  const calcRoiInline = document.getElementById('calc-roi-inline');
+  const calcAdBonus   = document.getElementById('calc-ad-bonus');
+  const calcAdValue   = document.getElementById('calc-ad-value');
+
+  // State
+  let closeRate  = 0.25;  // Typical
   let useRejuv   = false;
+  let useAds     = false;
   let useAiVoice = true;  // Catch/Close selected by default
+  let planCost   = 497;
 
   function fmt(n) {
     if (n >= 1000) return '$' + (n / 1000).toFixed(n % 1000 === 0 ? 0 : 1) + 'K';
@@ -137,64 +198,68 @@
   function recalculate() {
     const ticket  = parseInt(ticketSlider.value);
     const callsPW = parseInt(callsSlider.value);
+    const adBudget = adBudgetSlider ? parseInt(adBudgetSlider.value) : 1500;
 
-    // Conversion rates
-    const convRate = useAiVoice ? 0.70 : 0.40;
+    // Response rate (how many missed callers engage)
+    const responseRate = useAiVoice ? 0.55 : 0.35;
+
+    // Monthly missed calls
     const missedPM = callsPW * 4.33;
-    const jobsPM   = Math.round(missedPM * convRate);
 
-    // Base revenue added
-    const baseMonthly = Math.round(jobsPM * ticket);
+    // Leads that respond/engage
+    const respondedLeads = missedPM * responseRate;
 
-    // Range: ±25%
-    const lo = Math.round(baseMonthly * 0.75);
-    const hi = Math.round(baseMonthly * 1.25);
+    // Jobs booked (close rate applied)
+    const jobsPM = Math.round(respondedLeads * closeRate);
+
+    // Base revenue from missed call recovery
+    const baseRevenue = jobsPM * ticket;
 
     // Rejuvenation bonus
-    const rejuvBonus = useRejuv ? Math.round(1800 + Math.random() * 200) : 0;
+    const rejuvBonus = useRejuv ? 1500 : 0;
 
-    const totalMonthly = baseMonthly + rejuvBonus;
+    // Ad spend bonus: leads from ads at ~$80 CPL
+    const adLeads = useAds ? Math.floor(adBudget / 80) : 0;
+    const adJobs  = Math.round(adLeads * closeRate);
+    const adBonus = adJobs * ticket;
+
+    // Total
+    const totalMonthly = Math.round(baseRevenue + rejuvBonus + adBonus);
     const totalAnnual  = totalMonthly * 12;
-
-    // Cost
-    const cost = useAiVoice ? 497 : 297;
-
-    // ROI (rounded)
-    const roi = Math.max(1, Math.round(totalMonthly / cost));
+    const roi = Math.max(1, Math.round(totalMonthly / planCost));
 
     // Update display
-    calcMonthly.textContent    = fmtFull(totalMonthly);
-    calcMonthlyRng.textContent = `Estimated ${fmtFull(lo)} – ${fmtFull(hi)}/mo`;
-    calcAnnual.textContent     = fmt(totalAnnual);
-    calcJobs.textContent       = jobsPM;
-    calcCost.textContent       = '$' + cost + '/mo';
-    calcRoi.textContent        = roi + 'x';
-    calcRoiInline.textContent  = '$' + roi;
+    if (calcMonthly)   calcMonthly.textContent   = fmtFull(totalMonthly);
+    if (calcAnnual)    calcAnnual.textContent     = fmtFull(totalAnnual);
+    if (calcJobs)      calcJobs.textContent       = '~' + jobsPM;
+    if (calcCost)      calcCost.textContent       = '$' + planCost + '/mo';
+    if (calcRoi)       calcRoi.textContent        = roi + 'x';
+    if (calcRoiInline) calcRoiInline.textContent  = '$' + roi;
 
-    // Conditional messages
-    condRejuv.classList.toggle('visible', useRejuv);
-    condVoice.classList.toggle('visible', useAiVoice);
-    condHighticket.classList.toggle('visible', ticket >= 700);
-
-    if (condTicketMath && ticket >= 700) {
-      condTicketMath.textContent = fmtFull(ticket * 4) + '/mo';
+    // Ad bonus display
+    if (calcAdBonus) {
+      calcAdBonus.classList.toggle('visible', useAds && adBonus > 0);
+    }
+    if (calcAdValue) {
+      calcAdValue.textContent = fmtFull(adBonus);
     }
 
-    // Update slider fill gradient
+    // Update slider fills
     updateSliderFill(ticketSlider, 150, 2000);
     updateSliderFill(callsSlider, 1, 30);
-    updateSliderFill(revenueSlider, 3000, 80000);
+    if (adBudgetSlider && useAds) {
+      updateSliderFill(adBudgetSlider, 500, 10000);
+    }
   }
 
   function updateSliderFill(slider, min, max) {
     const pct = ((slider.value - min) / (max - min)) * 100;
-    slider.style.background = `linear-gradient(to right, #4393F9 0%, #4393F9 ${pct}%, rgba(255,255,255,0.12) ${pct}%, rgba(255,255,255,0.12) 100%)`;
+    slider.style.background = `linear-gradient(to right, #4393F9 0%, #4393F9 ${pct}%, #E8E8ED ${pct}%, #E8E8ED 100%)`;
   }
 
   // Slider events
   ticketSlider.addEventListener('input', () => {
-    const v = parseInt(ticketSlider.value);
-    ticketVal.textContent = '$' + v.toLocaleString();
+    ticketVal.textContent = '$' + parseInt(ticketSlider.value).toLocaleString();
     recalculate();
   });
 
@@ -203,48 +268,58 @@
     recalculate();
   });
 
-  revenueSlider.addEventListener('input', () => {
-    const v = parseInt(revenueSlider.value);
-    revenueVal.textContent = fmt(v);
-    recalculate();
-  });
-
-  // Add-on toggle
-  function toggleAddon() {
-    useRejuv = !useRejuv;
-    addonEl.classList.toggle('active', useRejuv);
-    addonEl.setAttribute('aria-checked', useRejuv);
-    recalculate();
-  }
-  addonEl.addEventListener('click', toggleAddon);
-  addonEl.addEventListener('keydown', e => {
-    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleAddon(); }
-  });
-
-  // Package toggle
-  function selectClose() {
-    useAiVoice = false;
-    pkgClose.classList.add('selected');
-    pkgCatchClose.classList.remove('selected');
-    recalculate();
-  }
-  function selectCatchClose() {
-    useAiVoice = true;
-    pkgCatchClose.classList.add('selected');
-    pkgClose.classList.remove('selected');
-    recalculate();
+  if (adBudgetSlider) {
+    adBudgetSlider.addEventListener('input', () => {
+      adBudgetVal.textContent = '$' + parseInt(adBudgetSlider.value).toLocaleString();
+      recalculate();
+    });
   }
 
-  pkgClose.addEventListener('click', selectClose);
-  pkgClose.addEventListener('keydown', e => {
-    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectClose(); }
-  });
-  pkgCatchClose.addEventListener('click', selectCatchClose);
-  pkgCatchClose.addEventListener('keydown', e => {
-    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectCatchClose(); }
+  // Close rate toggle
+  rateButtons.forEach(btn => {
+    btn.addEventListener('click', () => {
+      rateButtons.forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      closeRate = parseFloat(btn.dataset.rate);
+      recalculate();
+    });
   });
 
-  // Initial run
+  // iOS toggle: Lead Rejuvenation
+  if (toggleRejuv) {
+    toggleRejuv.addEventListener('click', () => {
+      useRejuv = !useRejuv;
+      toggleRejuv.classList.toggle('active', useRejuv);
+      toggleRejuv.setAttribute('aria-checked', useRejuv);
+      recalculate();
+    });
+  }
+
+  // iOS toggle: Ads
+  if (toggleAds) {
+    toggleAds.addEventListener('click', () => {
+      useAds = !useAds;
+      toggleAds.classList.toggle('active', useAds);
+      toggleAds.setAttribute('aria-checked', useAds);
+      if (adBudgetWrap) {
+        adBudgetWrap.style.display = useAds ? 'block' : 'none';
+      }
+      recalculate();
+    });
+  }
+
+  // Plan pills
+  pills.forEach(pill => {
+    pill.addEventListener('click', () => {
+      pills.forEach(p => p.classList.remove('active'));
+      pill.classList.add('active');
+      planCost   = parseInt(pill.dataset.cost);
+      useAiVoice = pill.dataset.plan === 'catchclose';
+      recalculate();
+    });
+  });
+
+  // Initial calculation
   recalculate();
 })();
 
@@ -257,12 +332,12 @@
   if (!tbody) return;
 
   const national = [
-    { mo: 'Month 1',  desc: 'Missed-call catch only (8 jobs × $450)',              mo_rev: 3600,  cum: 3600   },
-    { mo: 'Month 3',  desc: 'Missed calls + early review bump (1 organic job)',     mo_rev: 4050,  cum: 11700  },
-    { mo: 'Month 6',  desc: 'Missed calls + solid review ranking (3 organic jobs)', mo_rev: 4950,  cum: 25200  },
-    { mo: 'Month 12', desc: 'Missed calls + 100+ reviews + reactivation blast',     mo_rev: 8100,  cum: 58500  },
-    { mo: 'Month 18', desc: 'Missed calls + dominant local SEO (8 organic jobs)',   mo_rev: 7200,  cum: 104400 },
-    { mo: 'Month 24', desc: 'Missed calls + 200+ reviews + seasonal text blast',    mo_rev: 12600, cum: 163800 },
+    { mo: 'Month 1',  desc: 'Missed-call catch only (5–6 jobs × $450)',              mo_rev: 2500,  cum: 2500   },
+    { mo: 'Month 3',  desc: 'Missed calls + early review bump (1 organic job)',       mo_rev: 3000,  cum: 8500   },
+    { mo: 'Month 6',  desc: 'Missed calls + solid review ranking (2 organic jobs)',   mo_rev: 3800,  cum: 18900  },
+    { mo: 'Month 12', desc: 'Missed calls + 80+ reviews + reactivation blast',        mo_rev: 5600,  cum: 43500  },
+    { mo: 'Month 18', desc: 'Missed calls + strong local SEO (5 organic jobs)',       mo_rev: 6400,  cum: 77100  },
+    { mo: 'Month 24', desc: 'Missed calls + 150+ reviews + seasonal text blast',      mo_rev: 9200,  cum: 122700 },
   ];
 
   const california = national.map(r => ({
@@ -292,12 +367,16 @@
   btnNational.addEventListener('click', () => {
     btnNational.classList.add('active');
     btnCali.classList.remove('active');
+    btnNational.setAttribute('aria-pressed', 'true');
+    btnCali.setAttribute('aria-pressed', 'false');
     render(national);
   });
 
   btnCali.addEventListener('click', () => {
     btnCali.classList.add('active');
     btnNational.classList.remove('active');
+    btnCali.setAttribute('aria-pressed', 'true');
+    btnNational.setAttribute('aria-pressed', 'false');
     render(california);
   });
 })();
@@ -334,15 +413,13 @@
     const maxIdx = Math.max(0, total - vis);
     current = Math.max(0, Math.min(idx, maxIdx));
 
-    const slideW  = slides[0].offsetWidth + 20; // gap = 20px
+    const slideW  = slides[0].offsetWidth + 20;
     slider.style.transform = `translateX(-${current * slideW}px)`;
 
-    // Active class
     slides.forEach((s, i) => {
       s.classList.toggle('active', i >= current && i < current + vis);
     });
 
-    // Update dots
     Array.from(dotsWrap.children).forEach((d, i) => {
       d.classList.toggle('active', i === current);
     });
@@ -387,12 +464,10 @@
     const btn = item.querySelector('.faq-q');
     btn.addEventListener('click', () => {
       const isOpen = item.classList.contains('open');
-      // Close all
       items.forEach(i => {
         i.classList.remove('open');
         i.querySelector('.faq-q').setAttribute('aria-expanded', 'false');
       });
-      // Toggle clicked
       if (!isOpen) {
         item.classList.add('open');
         btn.setAttribute('aria-expanded', 'true');
@@ -417,12 +492,12 @@
       setTimeout(() => { input.style.borderColor = ''; }, 2000);
       return;
     }
-    submit.textContent = '📞 Calling you now…';
+    submit.textContent = 'Calling you now...';
     submit.disabled = true;
     input.disabled  = true;
 
     setTimeout(() => {
-      submit.textContent = '✅ Call initiated!';
+      submit.textContent = 'Call initiated!';
       submit.style.background = 'var(--success)';
     }, 1500);
   });
@@ -434,11 +509,11 @@ function handleTrialSubmit(e) {
   e.preventDefault();
   const btn = e.target.querySelector('button[type="submit"]');
 
-  btn.textContent  = 'Sending…';
+  btn.textContent  = 'Sending...';
   btn.disabled     = true;
 
   setTimeout(() => {
-    btn.textContent = '✅ We\'ll be in touch soon!';
+    btn.textContent = 'We\'ll be in touch soon!';
     btn.style.background = 'var(--success)';
     btn.style.color      = '#fff';
     btn.style.boxShadow  = '0 4px 20px rgba(52,199,89,0.4)';
@@ -455,7 +530,7 @@ document.querySelectorAll('a[href^="#"]').forEach(link => {
     const target = document.getElementById(id);
     if (!target) return;
     e.preventDefault();
-    const offset = 72; // nav height
+    const offset = 72;
     const top = target.getBoundingClientRect().top + window.scrollY - offset;
     window.scrollTo({ top, behavior: 'smooth' });
   });
@@ -472,7 +547,6 @@ document.querySelectorAll('a[href^="#"]').forEach(link => {
       const el  = entry.target;
       const raw = el.textContent.trim();
 
-      // Only animate pure number-like strings
       const match = raw.match(/^(\$?)(\d+)([\+K%]*)$/);
       if (!match) return;
 
@@ -485,7 +559,7 @@ document.querySelectorAll('a[href^="#"]').forEach(link => {
       function tick(now) {
         const elapsed = now - start;
         const progress = Math.min(elapsed / duration, 1);
-        const ease = 1 - Math.pow(1 - progress, 3); // ease out cubic
+        const ease = 1 - Math.pow(1 - progress, 3);
         const val = Math.round(ease * target);
         el.textContent = prefix + val.toLocaleString() + suffix;
         if (progress < 1) requestAnimationFrame(tick);
