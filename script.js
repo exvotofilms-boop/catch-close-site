@@ -60,25 +60,6 @@
 })();
 
 
-/* ─── Hero phone notification sequence ────────────────────── */
-(function initPhoneNotifs() {
-  const notif1 = document.getElementById('notif1');
-  const notif2 = document.getElementById('notif2');
-  if (!notif1 || !notif2) return;
-
-  function runSequence() {
-    notif1.classList.remove('show');
-    notif2.classList.remove('show');
-
-    setTimeout(() => notif1.classList.add('show'), 800);
-    setTimeout(() => notif2.classList.add('show'), 2800);
-    setTimeout(runSequence, 7000);
-  }
-
-  setTimeout(runSequence, 600);
-})();
-
-
 /* ─── Floating CTA visibility ─────────────────────────────── */
 (function initFloatCta() {
   const floatCta = document.getElementById('float-cta');
@@ -324,7 +305,7 @@
 })();
 
 
-/* ─── Roadmap table ───────────────────────────────────────── */
+/* ─── Roadmap table (more conservative numbers) ──────────── */
 (function initRoadmap() {
   const btnNational = document.getElementById('btn-national');
   const btnCali     = document.getElementById('btn-cali');
@@ -332,12 +313,12 @@
   if (!tbody) return;
 
   const national = [
-    { mo: 'Month 1',  desc: 'Missed-call catch only (5–6 jobs × $450)',              mo_rev: 2500,  cum: 2500   },
-    { mo: 'Month 3',  desc: 'Missed calls + early review bump (1 organic job)',       mo_rev: 3000,  cum: 8500   },
-    { mo: 'Month 6',  desc: 'Missed calls + solid review ranking (2 organic jobs)',   mo_rev: 3800,  cum: 18900  },
-    { mo: 'Month 12', desc: 'Missed calls + 80+ reviews + reactivation blast',        mo_rev: 5600,  cum: 43500  },
-    { mo: 'Month 18', desc: 'Missed calls + strong local SEO (5 organic jobs)',       mo_rev: 6400,  cum: 77100  },
-    { mo: 'Month 24', desc: 'Missed calls + 150+ reviews + seasonal text blast',      mo_rev: 9200,  cum: 122700 },
+    { mo: 'Month 1',  desc: 'Missed-call catch only (3–4 jobs × $450)',              mo_rev: 1575,  cum: 1575   },
+    { mo: 'Month 3',  desc: 'Missed calls + early review bump (1 organic job)',       mo_rev: 2100,  cum: 5775   },
+    { mo: 'Month 6',  desc: 'Missed calls + solid review ranking (2 organic jobs)',   mo_rev: 2800,  cum: 13125  },
+    { mo: 'Month 12', desc: 'Missed calls + 60+ reviews + reactivation blast',       mo_rev: 3900,  cum: 30825  },
+    { mo: 'Month 18', desc: 'Missed calls + strong local SEO (4 organic jobs)',       mo_rev: 4800,  cum: 57825  },
+    { mo: 'Month 24', desc: 'Missed calls + 100+ reviews + seasonal text blast',     mo_rev: 6200,  cum: 90825  },
   ];
 
   const california = national.map(r => ({
@@ -382,30 +363,38 @@
 })();
 
 
-/* ─── Day in Life Slider ──────────────────────────────────── */
-(function initDilSlider() {
-  const slider   = document.getElementById('dil-slider');
-  const dotsWrap = document.getElementById('dil-dots');
-  const prevBtn  = document.getElementById('dil-prev');
-  const nextBtn  = document.getElementById('dil-next');
-  if (!slider) return;
+/* ─── Reviews Carousel ───────────────────────────────────── */
+(function initReviewsCarousel() {
+  const carousel = document.getElementById('reviews-carousel');
+  const dotsWrap = document.getElementById('reviews-dots');
+  const prevBtn  = document.getElementById('reviews-prev');
+  const nextBtn  = document.getElementById('reviews-next');
+  if (!carousel) return;
 
-  const slides  = Array.from(slider.querySelectorAll('.dil-slide'));
-  const total   = slides.length;
+  const cards   = Array.from(carousel.querySelectorAll('.review-card'));
+  const total   = cards.length;
   let current   = 0;
   let autoTimer = null;
 
-  // Build dots
-  slides.forEach((_, i) => {
-    const dot = document.createElement('button');
-    dot.className = 'dil-dot' + (i === 0 ? ' active' : '');
-    dot.setAttribute('aria-label', `Slide ${i + 1}`);
-    dot.addEventListener('click', () => goTo(i));
-    dotsWrap.appendChild(dot);
-  });
-
   function getVisibleCount() {
-    return window.innerWidth <= 768 ? 1 : 3;
+    if (window.innerWidth <= 768) return 1;
+    if (window.innerWidth <= 1024) return 2;
+    return 3;
+  }
+
+  // Build dots
+  function buildDots() {
+    dotsWrap.innerHTML = '';
+    const vis    = getVisibleCount();
+    const maxIdx = Math.max(0, total - vis);
+    const dotCount = maxIdx + 1;
+    for (let i = 0; i < dotCount; i++) {
+      const dot = document.createElement('button');
+      dot.className = 'review-dot' + (i === 0 ? ' active' : '');
+      dot.setAttribute('aria-label', `Slide ${i + 1}`);
+      dot.addEventListener('click', () => goTo(i));
+      dotsWrap.appendChild(dot);
+    }
   }
 
   function goTo(idx) {
@@ -413,12 +402,8 @@
     const maxIdx = Math.max(0, total - vis);
     current = Math.max(0, Math.min(idx, maxIdx));
 
-    const slideW  = slides[0].offsetWidth + 20;
-    slider.style.transform = `translateX(-${current * slideW}px)`;
-
-    slides.forEach((s, i) => {
-      s.classList.toggle('active', i >= current && i < current + vis);
-    });
+    const cardW  = cards[0].offsetWidth + 20;
+    carousel.style.transform = `translateX(-${current * cardW}px)`;
 
     Array.from(dotsWrap.children).forEach((d, i) => {
       d.classList.toggle('active', i === current);
@@ -434,24 +419,34 @@
   }
 
   function prev() {
-    goTo(current <= 0 ? Math.max(0, total - getVisibleCount()) : current - 1);
+    const vis    = getVisibleCount();
+    const maxIdx = Math.max(0, total - vis);
+    goTo(current <= 0 ? maxIdx : current - 1);
   }
 
   function resetAuto() {
     clearInterval(autoTimer);
-    autoTimer = setInterval(next, 4500);
+    autoTimer = setInterval(next, 5000);
   }
+
+  buildDots();
 
   prevBtn.addEventListener('click', prev);
   nextBtn.addEventListener('click', next);
 
   // Touch swipe
   let touchX = 0;
-  slider.addEventListener('touchstart', e => { touchX = e.touches[0].clientX; }, { passive: true });
-  slider.addEventListener('touchend', e => {
+  carousel.addEventListener('touchstart', e => { touchX = e.touches[0].clientX; }, { passive: true });
+  carousel.addEventListener('touchend', e => {
     const dx = e.changedTouches[0].clientX - touchX;
     if (Math.abs(dx) > 50) dx < 0 ? next() : prev();
   }, { passive: true });
+
+  // Rebuild dots on resize
+  window.addEventListener('resize', () => {
+    buildDots();
+    goTo(Math.min(current, Math.max(0, total - getVisibleCount())));
+  });
 
   resetAuto();
 })();
@@ -482,6 +477,33 @@
   const form   = document.getElementById('demo-form');
   const input  = document.getElementById('demo-phone');
   const submit = document.getElementById('demo-submit');
+  if (!form) return;
+
+  form.addEventListener('submit', (e) => {
+    e.preventDefault();
+    if (!input.value.trim()) {
+      input.style.borderColor = 'var(--red)';
+      input.focus();
+      setTimeout(() => { input.style.borderColor = ''; }, 2000);
+      return;
+    }
+    submit.textContent = 'Calling you now...';
+    submit.disabled = true;
+    input.disabled  = true;
+
+    setTimeout(() => {
+      submit.textContent = 'Call initiated!';
+      submit.style.background = 'var(--success)';
+    }, 1500);
+  });
+})();
+
+
+/* ─── Hero Voice Demo form ─────────────────────────────────── */
+(function initHeroVoiceForm() {
+  const form   = document.getElementById('hero-voice-form');
+  const input  = document.getElementById('hero-voice-phone');
+  const submit = document.getElementById('hero-voice-submit');
   if (!form) return;
 
   form.addEventListener('submit', (e) => {
@@ -539,7 +561,7 @@ document.querySelectorAll('a[href^="#"]').forEach(link => {
 
 /* ─── Animate number counters on scroll ─────────────────────── */
 (function initCounters() {
-  const items = document.querySelectorAll('.sbar-item strong, .prob-stat-num');
+  const items = document.querySelectorAll('.sbar-item strong, .prob-stat-num, .proof-bar-item strong');
 
   const observer = new IntersectionObserver(entries => {
     entries.forEach(entry => {
